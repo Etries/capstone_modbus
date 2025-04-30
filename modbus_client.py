@@ -1,38 +1,29 @@
 #!/usr/bin/env python3
-""" Modbus client """
+""" Modbus Client CLI using ANSI colors """
 
 import argparse
-from pymodbus.client  import ModbusTcpClient
-from pymodbus.mei_message import ReadDeviceInformationRequest
-
-# ANSI color codes
-GREEN = "\033[92m"
-RESET = "\033[0m"
+import sys
 
 def parse_args():
-    parser = argparse.ArgumentParser(description="Modbus client")
-    parser.add_argument("-i", "--ip", help="Modbus server IP address", required=True)
-    parser.add_argument("-p", "--port", help="Modbus server TCP port", type=int, default=502)
-    return parser.parse_args()
+    parser = argparse.ArgumentParser(
+        prog="modbus_client.py",
+        description="Modbus client",
+        formatter_class=argparse.RawTextHelpFormatter
+    )
+    parser.add_argument("-i", "--ip", metavar="IP", help="Modbus server IP address")
+    parser.add_argument("-p", "--port", metavar="PORT", help="Modbus server TCP port", type=int, default=502)
 
-def display_identity(client):
-    request = ReadDeviceInformationRequest()
-    response = client.execute(request)
+    args = parser.parse_args()
 
-    print(f"{GREEN}Vendor Name : {response.information[0].decode()}")
-    print(f"Product Code: {response.information[1].decode()}")
-    print(f"Revision    : {response.information[2].decode()}{RESET}")
+    if not args.ip:
+        parser.print_help()
+        sys.exit(1)
+
+    return args
 
 def main():
     args = parse_args()
-    client = ModbusTcpClient(host=args.ip, port=args.port)
-    if not client.connect():
-        print("❌ Could not connect to Modbus server. Check IP/Port and try again.")
-        return
-
-    display_identity(client)
-    # TODO: Display menu here
-    client.close()
+    print(f"Connecting to {args.ip}:{args.port}")
 
 if __name__ == "__main__":
     main()
