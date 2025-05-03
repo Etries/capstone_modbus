@@ -48,67 +48,29 @@ content_frame = tk.Frame(main_frame, bg="#f0f0f0")
 content_frame.pack(side="right", expand=True, fill="both")
 
 
-
-def connect_to_server():
-    global client
-    ip = ip_entry.get()
-    port = int(port_entry.get())
-
+def save_modbus_field(ip, field, value):
+    if field not in ["di", "co", "ir", "hr"]:
+        return
     try:
-        client = ModbusTcpClient(host=ip, port=port)
-        if client.connect():
-            status_label.config(text=f"Connected to {ip}:{port}", fg="green")
-
-            # === Ensure database and tables exist ===
-            conn = sqlite3.connect(DB_FILE)
-            cur = conn.cursor()
-
-            # Create modbus table
-            cur.execute("""
-                CREATE TABLE IF NOT EXISTS modbus (
-                    ip TEXT PRIMARY KEY,
-                    di TEXT,
-                    co TEXT,
-                    ir TEXT,
-                    hr TEXT
-                )
-            """)
-
-            # Create tokens table (if used later)
-            cur.execute("""
-                CREATE TABLE IF NOT EXISTS tokens (
-                    username TEXT PRIMARY KEY,
-                    password TEXT
-                )
-            """)
-            conn.commit()
-            conn.close()
-
-            # === Get Modbus device information ===
-            try:
-                info_request = ReadDeviceInformationRequest()
-                info_response = client.execute(info_request)
-
-                if not info_response.isError():
-                    vendor = info_response.information[0].decode()
-                    product = info_response.information[1].decode()
-                    revision = info_response.information[2].decode()
-
-                    modbus_info_label.config(
-                        text=f"Vendor: {vendor} | Product: {product} | Revision: {revision}",
-                        fg="black"
-                    )
-                else:
-                    modbus_info_label.config(text="Unable to read Modbus device info.", fg="red")
-            except Exception as info_err:
-                modbus_info_label.config(text=f"Modbus info error: {info_err}", fg="red")
-
-        else:
-            status_label.config(text="Connection failed", fg="red")
-            modbus_info_label.config(text="")  # clear footer
-    except Exception as e:
-        status_label.config(text=f"Error: {e}", fg="red")
-        modbus_info_label.config(text="")  # clear footer
+        conn = sqlite3.connect(DB_FILE)
+        cur = conn.cursor()
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS modbus (
+                ip TEXT PRIMARY KEY,
+                di TEXT,
+                co TEXT,
+                ir TEXT,
+                hr TEXT
+            )
+        """)
+        cur.execute("SELECT ip FROM modbus WHERE ip = ?", (ip,))
+        if cur.fetchone() is None:
+            cur.execute("INSERT INTO modbus (ip) VALUES (?)", (ip,))
+        cur.execute(f"UPDATE modbus SET {field} = ? WHERE ip = ?", (value, ip))
+        conn.commit()
+        conn.close()
+    except sqlite3.Error as e:
+        print(f"Database update error: {e}")
 
 def create_user():
     for widget in content_frame.winfo_children():
@@ -244,6 +206,62 @@ def read_holding_registers():
         for i, val in enumerate(values):
             tk.Label(content_frame, text=f"Register {i}: {val}", font=("Arial", 12), bg="#f0f0f0").pack()
 
+def connect_to_server():
+    global client, current_ip
+    ip = ip_entry.get()
+    port = int(port_entry.get())
+    current_ip = ip
+
+    try:
+        client = ModbusTcpClient(host=ip, port=port)
+        if client.connect():
+            status_label.config(text=f"Connected to {ip}:{port}", fg="green")
+
+            conn = sqlite3.connect(DB_FILE)
+            cur = conn.cursor()
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS modbus (
+                    ip TEXT PRIMARY KEY,
+                    di TEXT,
+                    co TEXT,
+                    ir TEXT,
+                    hr TEXT
+                )
+            """)
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS tokens (
+                    username TEXT PRIMARY KEY,
+                    password TEXT
+                )
+            """)
+            conn.commit()
+            conn.close()
+
+            try:
+                info_request = ReadDeviceInformationRequest()
+                info_response = client.execute(info_request)
+
+                if not info_response.isError():
+                    vendor = info_response.information[0].decode()
+                    product = info_response.information[1].decode()
+                    revision = info_response.information[2].decode()
+
+                    modbus_info_label.config(
+                        text=f"Vendor: {vendor} | Product: {product} | Revision: {revision}",
+                        fg="black"
+                    )
+                else:
+                    modbus_info_label.config(text="Unable to read Modbus device info.", fg="red")
+            except Exception as info_err:
+                modbus_info_label.config(text=f"Modbus info error: {info_err}", fg="red")
+
+        else:
+            status_label.config(text="Connection failed", fg="red")
+            modbus_info_label.config(text="")
+    except Exception as e:
+        status_label.config(text=f"Error: {e}", fg="red")
+        modbus_info_label.config(text="")
+
 def write_output_coils():
     for widget in content_frame.winfo_children():
         widget.destroy()
@@ -270,9 +288,10 @@ def write_output_coils():
             tk.Label(content_frame, text="Failed to write to coils.", fg="red", bg="#f0f0f0").pack()
         else:
             tk.Label(content_frame, text="Coil values written successfully.", fg="green", bg="#f0f0f0").pack()
+            save_modbus_field(current_ip, "co", ",".join(map(str, map(int, bits))))
 
     for i, bit in enumerate(current_bits):
-        var = tk.IntVar(value=int(bit))  # preload current state
+        var = tk.IntVar(value=int(bit))
         coil_vars.append(var)
 
         frame = tk.Frame(content_frame, bg="#f0f0f0")
@@ -284,7 +303,6 @@ def write_output_coils():
 
     submit_btn = tk.Button(content_frame, text="Submit", command=submit)
     submit_btn.pack(pady=10)
-
 def write_holding_registers():
     for widget in content_frame.winfo_children():
         widget.destroy()
@@ -296,7 +314,6 @@ def write_holding_registers():
         tk.Label(content_frame, text="Not connected to any Modbus server.", fg="orange", bg="#f0f0f0").pack()
         return
 
-    # Read current register values
     result = client.read_holding_registers(address=0, count=8, slave=1)
     if result.isError():
         tk.Label(content_frame, text="Failed to read current holding registers.", fg="red", bg="#f0f0f0").pack()
@@ -307,7 +324,6 @@ def write_holding_registers():
 
     def submit():
         values = []
-
         for i, var in enumerate(entry_vars):
             raw = var.get().strip()
             if not raw.isdigit():
@@ -319,7 +335,6 @@ def write_holding_registers():
                 return
             values.append(val)
 
-        # Pad if needed
         while len(values) < 8:
             values.append(0)
 
@@ -328,8 +343,8 @@ def write_holding_registers():
             tk.Label(content_frame, text="Failed to write to holding registers.", fg="red", bg="#f0f0f0").pack()
         else:
             tk.Label(content_frame, text="Holding register values written successfully.", fg="green", bg="#f0f0f0").pack()
+            save_modbus_field(current_ip, "hr", ",".join(map(str, values)))
 
-    # Display fields pre-filled with current values
     for i, val in enumerate(current_values):
         frame = tk.Frame(content_frame, bg="#f0f0f0")
         frame.pack(pady=2, anchor="w")

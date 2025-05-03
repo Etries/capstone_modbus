@@ -210,13 +210,13 @@ def read_all_blocks(client):
     # Discrete Inputs
     di = client.read_discrete_inputs(0, 4, slave=1)
     if di.isError():
-        print("Discrete Input Contacts       Error reading")
+        print("Discrete Input Contacts Error reading")
     else:
         contacts = [
             f"{GREEN}True{RESET}" if b else f"{RED}False{RESET}"
             for b in di.bits[:4]
         ]
-        print("Discrete Input Contacts       " + ", ".join(contacts))
+        print("Discrete Input Contacts" + ", ".join(contacts))
 
     # Output Coils
     co = client.read_coils(0, 4, slave=1)
@@ -243,7 +243,7 @@ def read_all_blocks(client):
     else:
         print("Analogue Output Holding Registers [ " + ", ".join(str(r) for r in hr.registers[:8]) + " ]")
 
-def write_output_coils(client):
+def write_output_coils(client, ip):
     print("Enter comma separated")
     user_input = input("list of up to 4 bool values: ").strip()
 
@@ -267,10 +267,11 @@ def write_output_coils(client):
         result = client.write_coils(address=0, values=bits, slave=1)
 
         if result.isError():
-            print("\n to write to coils.")
+            print("\n failed to write to coils.")
         else:
             print("\nPost write, Discrete Output Coil values:")
             print(f"Success: {GREEN}True{RESET}\n")
+            save_modbus_field(ip, "co", ",".join(map(str, map(int, bits))))
             co = client.read_coils(0, 4, slave=1)
             for i, val in enumerate(co.bits[:4]):
                 status = f"{GREEN}True{RESET}" if val else f"{RED}False{RESET}"
@@ -281,7 +282,7 @@ def write_output_coils(client):
 
 
 
-def write_holding_registers(client):
+def write_holding_registers(client,ip):
     print("Enter comma separated")
     print("list of up to 8 integer values: ", end="")
     user_input = input().strip()
@@ -308,6 +309,7 @@ def write_holding_registers(client):
         else:
             print("\nPost write, Analogue Output Holding Register values:")
             print("Success:", f"{GREEN}True{RESET}\n")
+            save_modbus_field(ip, "hr", ",".join(map(str, values)))
             hr = client.read_holding_registers(0, 8, slave=1)
             for i, val in enumerate(hr.registers[:8]):
                 print(f"Register {i}: {val}")
@@ -339,7 +341,9 @@ def display_modbus_info(client):
 
 def main():
     args = parse_args()
-    client = ModbusTcpClient(host=args.ip, port=args.port)
+    ip = args.ip
+    port = args.port
+    client = ModbusTcpClient(host=ip, port=port)
     if not client.connect():
         print("Could not connect to Modbus server. Check IP/Port.")
         sys.exit(1)
@@ -359,9 +363,9 @@ def main():
         elif choice == "5":
             read_all_blocks(client)
         elif choice == "6":
-            write_output_coils(client)
+            write_output_coils(client,ip)
         elif choice == "7":
-            write_holding_registers(client)
+            write_holding_registers(client,ip)
         elif choice == "8":
             create_or_update_user(client)
         elif choice == "9":
