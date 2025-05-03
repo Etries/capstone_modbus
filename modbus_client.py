@@ -3,6 +3,7 @@
 
 import argparse
 import sys
+import os
 import sqlite3
 from getpass import getpass
 from pymodbus.client import ModbusTcpClient
@@ -13,6 +14,8 @@ from pymodbus.mei_message import ReadDeviceInformationRequest
 GREEN = "\033[92m"
 RED = "\033[91m"
 RESET = "\033[0m"
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+DB_FILE = os.path.join(BASE_DIR, "modbus_db.sqlite")
 
 #prints menu
 def print_menu():
@@ -58,7 +61,7 @@ def create_or_update_user(_):
         return
 
     try:
-        conn = sqlite3.connect("modbus_db.sqlite")
+        conn = sqlite3.connect(DB_FILE)
         cur = conn.cursor()
 
         # Create tokens table if not exists
@@ -82,6 +85,83 @@ def create_or_update_user(_):
 
     except sqlite3.Error as e:
         print(f"Database error: {e}")
+
+def save_modbus_state(ip, di, co, ir, hr):
+    try:
+        
+        conn = sqlite3.connect(DB_FILE)
+        cur = conn.cursor()
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS modbus (
+                ip TEXT PRIMARY KEY,
+                di TEXT,
+                co TEXT,
+                ir TEXT,
+                hr TEXT
+            )
+        """)
+        cur.execute("""
+            INSERT INTO modbus (ip, di, co, ir, hr)
+            VALUES (?, ?, ?, ?, ?)
+            ON CONFLICT(ip) DO UPDATE SET
+                di=excluded.di,
+                co=excluded.co,
+                ir=excluded.ir,
+                hr=excluded.hr
+        """, (ip, di, co, ir, hr))
+        conn.commit()
+        conn.close()
+    except sqlite3.Error as e:
+        print(f"Error saving Modbus state: {e}")
+
+
+def save_modbus_field(ip, field, value):
+    if field not in ["di", "co", "ir", "hr"]:
+        print(f"Invalid Modbus field: {field}")
+        return
+
+    try:
+        conn = sqlite3.connect("modbus_db.sqlite")
+        cur = conn.cursor()
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS modbus (
+                ip TEXT PRIMARY KEY,
+                di TEXT,
+                co TEXT,
+                ir TEXT,
+                hr TEXT
+            )
+        """)
+        cur.execute("SELECT ip FROM modbus WHERE ip = ?", (ip,))
+        if cur.fetchone() is None:
+            cur.execute("INSERT INTO modbus (ip) VALUES (?)", (ip,))
+        cur.execute(f"UPDATE modbus SET {field} = ? WHERE ip = ?", (value, ip))
+        conn.commit()
+        conn.close()
+       
+    except sqlite3.Error as e:
+        print(f"Error updating {field}: {e}")
+
+def initial_modbus_sync(client, ip):
+    try:
+        di = client.read_discrete_inputs(0, 4, slave=1)
+        co = client.read_coils(0, 4, slave=1)
+        ir = client.read_input_registers(0, 8, slave=1)
+        hr = client.read_holding_registers(0, 8, slave=1)
+
+        if any(block.isError() for block in [di, co, ir, hr]):
+            print("Warning: One or more Modbus blocks failed during initial sync.")
+            return
+
+        save_modbus_state(
+            ip=ip,
+            di=",".join(["1" if b else "0" for b in di.bits[:4]]),
+            co=",".join(["1" if b else "0" for b in co.bits[:4]]),
+            ir=",".join(str(r) for r in ir.registers[:8]),
+            hr=",".join(str(r) for r in hr.registers[:8])
+        )
+    except Exception as e:
+        print(f"Modbus sync failed: {e}")
 
 
 def read_discrete_input(client):
@@ -170,7 +250,7 @@ def write_output_coils(client):
     try:
         bits_raw = [b.strip() for b in user_input.split(",") if b.strip()]
         if len(bits_raw) != 4:
-            print("❌ You must enter exactly 4 values.")
+            print("You must enter exactly 4 values.")
             return
 
         bits = []
@@ -263,6 +343,7 @@ def main():
     if not client.connect():
         print("Could not connect to Modbus server. Check IP/Port.")
         sys.exit(1)
+    initial_modbus_sync(client, args.ip)
     display_modbus_info(client)
     while True:  
         print_menu()
