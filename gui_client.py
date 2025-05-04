@@ -194,6 +194,46 @@ def read_holding_registers():
         values = result.registers[:8]
         for i, val in enumerate(values):
             tk.Label(content_frame, text=f"Register {i}: {val}", font=("Arial", 12), bg="#f0f0f0").pack()
+def read_all_blocks():
+    for widget in content_frame.winfo_children():
+        widget.destroy()
+
+    title = tk.Label(content_frame, text="All Modbus Data", font=("Arial", 14), bg="#f0f0f0")
+    title.pack(pady=10)
+
+    if client is None:
+        tk.Label(content_frame, text="⚠️ Not connected", fg="orange", bg="#f0f0f0").pack()
+        return
+
+
+    try:
+        di = client.read_discrete_inputs(0, 4, slave=1)
+        co = client.read_coils(0, 4, slave=1)
+        ir = client.read_input_registers(0, 8, slave=1)
+        hr = client.read_holding_registers(0, 8, slave=1)
+
+        if not di.isError():
+            tk.Label(content_frame, text="Discrete Inputs:", font=("Arial", 12), bg="#f0f0f0").pack()
+            for i, bit in enumerate(di.bits[:4]):
+                tk.Label(content_frame, text=f"Contact {i}: {'True' if bit else 'False'}", fg="green" if bit else "red", bg="#f0f0f0").pack()
+
+        if not co.isError():
+            tk.Label(content_frame, text="Output Coils:", font=("Arial", 12), bg="#f0f0f0").pack()
+            for i, bit in enumerate(co.bits[:4]):
+                tk.Label(content_frame, text=f"Coil {i}: {'True' if bit else 'False'}", fg="green" if bit else "red", bg="#f0f0f0").pack()
+
+        if not ir.isError():
+            tk.Label(content_frame, text="Input Registers:", font=("Arial", 12), bg="#f0f0f0").pack()
+            for i, val in enumerate(ir.registers[:8]):
+                tk.Label(content_frame, text=f"Register {i}: {val}", bg="#f0f0f0").pack()
+
+        if not hr.isError():
+            tk.Label(content_frame, text="Holding Registers:", font=("Arial", 12), bg="#f0f0f0").pack()
+            for i, val in enumerate(hr.registers[:8]):
+                tk.Label(content_frame, text=f"Register {i}: {val}", bg="#f0f0f0").pack()
+
+    except Exception as e:
+        tk.Label(content_frame, text=f"Read error: {e}", fg="red", bg="#f0f0f0").pack()
 
 def connect_to_server():
     global client, current_ip
@@ -354,6 +394,7 @@ buttons = [
     ("Read Output Coils", read_output_coils),
     ("Read Input Registers", read_input_registers),
     ("Read Holding Registers", read_holding_registers),
+    ("Read All", read_all_blocks),
     ("Write Output Coils", write_output_coils),
     ("Write Holding Registers", write_holding_registers),
     ("Create User", create_user),
