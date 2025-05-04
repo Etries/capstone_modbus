@@ -1,8 +1,6 @@
 #!/usr/bin/env python3
 
-
 import tkinter as tk
-import sys
 import os
 import sqlite3
 from getpass import getpass
@@ -17,14 +15,12 @@ root = tk.Tk()
 root.title("Modbus Client GUI")
 root.geometry("900x500") 
 client = None 
-
 connection_frame = tk.Frame(root, bg="#dfe6e9")
 connection_frame.pack(fill="x", padx=10, pady=5)
 
 tk.Label(connection_frame, text="Host/IP:", bg="#dfe6e9").pack(side="left", padx=(10, 2))
 ip_entry = tk.Entry(connection_frame)
-ip_entry.insert(0, "172.16.22.22")
-# ip_entry.insert(0, "127.0.0.1")
+ip_entry.insert(0, "127.0.0.1")
 ip_entry.pack(side="left")
 
 tk.Label(connection_frame, text="Port:", bg="#dfe6e9").pack(side="left", padx=(10, 2))
@@ -32,18 +28,15 @@ port_entry = tk.Entry(connection_frame, width=6)
 port_entry.insert(0, "502")
 port_entry.pack(side="left")
 
-status_label = tk.Label(connection_frame, text="🔌 Not connected", fg="red", bg="#dfe6e9")
-status_label.pack(side="right", padx=10)
+status = tk.Label(connection_frame, text="Not connected!!!", fg="red", bg="#dfe6e9")
+status.pack(side="right", padx=10)
 
-modbus_info_label = tk.Label(root, text="", font=("Arial", 10), bg="#e5e5e5", anchor="w")
-modbus_info_label.pack(fill="x", side="bottom", padx=10, pady=3)
-
-
-# This is the root frame encasulating nabBar and Content
+modbus_info = tk.Label(root, text="", font=("Arial", 10), bg="#e5e5e5", anchor="w")
+modbus_info.pack(fill="x", side="bottom", padx=10, pady=3)
 main_frame = tk.Frame(root)
 main_frame.pack(fill="both", expand=True)
-nav_frame = tk.Frame(main_frame, width=200, bg="#1a2b4c")
-nav_frame.pack(side="left", fill="y")
+navbar_frame = tk.Frame(main_frame, width=200, bg="#1a2b4c")
+navbar_frame.pack(side="left", fill="y")
 content_frame = tk.Frame(main_frame, bg="#f0f0f0")
 content_frame.pack(side="right", expand=True, fill="both")
 
@@ -70,7 +63,7 @@ def save_modbus_field(ip, field, value):
         conn.commit()
         conn.close()
     except sqlite3.Error as e:
-        print(f"Database update error: {e}")
+        tk.Label(content_frame, text=f"Database error: {e}", fg="red", bg="#f0f0f0").pack()
 
 def create_user():
     for widget in content_frame.winfo_children():
@@ -78,13 +71,9 @@ def create_user():
 
     title = tk.Label(content_frame, text="Create or Update User", font=("Arial", 14), bg="#f0f0f0")
     title.pack(pady=10)
-
-    # Username field
     tk.Label(content_frame, text="Username:", bg="#f0f0f0").pack(pady=(10, 0))
     username_entry = tk.Entry(content_frame)
     username_entry.pack()
-
-    # Password field (masked)
     tk.Label(content_frame, text="Password:", bg="#f0f0f0").pack(pady=(10, 0))
     password_entry = tk.Entry(content_frame, show="*")
     password_entry.pack()
@@ -101,7 +90,7 @@ def create_user():
             conn = sqlite3.connect(DB_FILE)
             cur = conn.cursor()
 
-            # Ensure table exists
+         
             cur.execute("""
                 CREATE TABLE IF NOT EXISTS tokens (
                     username TEXT PRIMARY KEY,
@@ -109,7 +98,7 @@ def create_user():
                 )
             """)
 
-            # Insert or update token
+           
             cur.execute("""
                 INSERT INTO tokens (username, password)
                 VALUES (?, ?)
@@ -139,7 +128,7 @@ def read_discrete_inputs():
 
     result = client.read_discrete_inputs(address=0, count=4, slave=1)
     if result.isError():
-        tk.Label(content_frame, text="❌ Failed to read discrete inputs.", fg="red", bg="#f0f0f0").pack()
+        tk.Label(content_frame, text="Failed to read discrete inputs.", fg="red", bg="#f0f0f0").pack()
     else:
         bits = result.bits[:4]
         for i, bit in enumerate(bits):
@@ -215,7 +204,7 @@ def connect_to_server():
     try:
         client = ModbusTcpClient(host=ip, port=port)
         if client.connect():
-            status_label.config(text=f"Connected to {ip}:{port}", fg="green")
+            status.config(text=f"Connected to {ip}:{port}", fg="green")
 
             conn = sqlite3.connect(DB_FILE)
             cur = conn.cursor()
@@ -246,21 +235,21 @@ def connect_to_server():
                     product = info_response.information[1].decode()
                     revision = info_response.information[2].decode()
 
-                    modbus_info_label.config(
+                    modbus_info.config(
                         text=f"Vendor: {vendor} | Product: {product} | Revision: {revision}",
                         fg="black"
                     )
                 else:
-                    modbus_info_label.config(text="Unable to read Modbus device info.", fg="red")
+                    modbus_info.config(text="Unable to read Modbus device info.", fg="red")
             except Exception as info_err:
-                modbus_info_label.config(text=f"Modbus info error: {info_err}", fg="red")
+                modbus_info.config(text=f"Modbus info error: {info_err}", fg="red")
 
         else:
-            status_label.config(text="Connection failed", fg="red")
-            modbus_info_label.config(text="")
+            status.config(text="Connection failed", fg="red")
+            modbus_info.config(text="")
     except Exception as e:
-        status_label.config(text=f"Error: {e}", fg="red")
-        modbus_info_label.config(text="")
+        status.config(text=f"Error: {e}", fg="red")
+        modbus_info.config(text="")
 
 def write_output_coils():
     for widget in content_frame.winfo_children():
@@ -303,6 +292,7 @@ def write_output_coils():
 
     submit_btn = tk.Button(content_frame, text="Submit", command=submit)
     submit_btn.pack(pady=10)
+
 def write_holding_registers():
     for widget in content_frame.winfo_children():
         widget.destroy()
@@ -371,9 +361,9 @@ buttons = [
 ]
 
 for label, cmd in buttons:
-    btn = tk.Button(nav_frame, text=label, command=cmd, bg="#2c3e50", fg="white", relief="flat")
+    btn = tk.Button(navbar_frame, text=label, command=cmd, bg="#2c3e50", fg="white", relief="flat")
     btn.pack(fill="x", pady=2, padx=5, ipady=5)
 connect_btn = tk.Button(connection_frame, text="Connect", command=connect_to_server)
 connect_btn.pack(side="left", padx=10)
-# === Run App ===
+
 root.mainloop()

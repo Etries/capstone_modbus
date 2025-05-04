@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-""" Modbus Client CLI using ANSI colors """
 
 import argparse
 import sys
@@ -17,8 +16,8 @@ RESET = "\033[0m"
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DB_FILE = os.path.join(BASE_DIR, "modbus_db.sqlite")
 
-#prints menu
-def print_menu():
+#Display menus options
+def display_menu():
     print("-" * 40)
     print("1. Discrete Input Contact values")
     print("2. Discrete Output Coil values")
@@ -30,9 +29,7 @@ def print_menu():
     print("8. Create/update a username and password")
     print("9. Exit/Quit")
 
-
-
-def parse_args():
+def args_parser():
     parser = argparse.ArgumentParser(
         prog="modbus_client.py",
         description="Modbus client",
@@ -48,43 +45,6 @@ def parse_args():
         sys.exit(1)
 
     return args
-
-
-
-def create_or_update_user(_):
-    print("Create or Update User Account")
-    username = input("Enter a username: ").strip()
-    password = getpass("Enter a password: ").strip()
-
-    if not username or not password:
-        print("Username and password cannot be empty.")
-        return
-
-    try:
-        conn = sqlite3.connect(DB_FILE)
-        cur = conn.cursor()
-
-        # Create tokens table if not exists
-        cur.execute("""
-            CREATE TABLE IF NOT EXISTS tokens (
-                username TEXT PRIMARY KEY,
-                password TEXT
-            )
-        """)
-
-        # Insert or update user
-        cur.execute("""
-            INSERT INTO tokens (username, password)
-            VALUES (?, ?)
-            ON CONFLICT(username) DO UPDATE SET password=excluded.password
-        """, (username, password))
-
-        conn.commit()
-        conn.close()
-        print(f"User '{username}' and the associated password added.")
-
-    except sqlite3.Error as e:
-        print(f"Database error: {e}")
 
 def save_modbus_state(ip, di, co, ir, hr):
     try:
@@ -114,7 +74,6 @@ def save_modbus_state(ip, di, co, ir, hr):
     except sqlite3.Error as e:
         print(f"Error saving Modbus state: {e}")
 
-
 def save_modbus_field(ip, field, value):
     if field not in ["di", "co", "ir", "hr"]:
         print(f"Invalid Modbus field: {field}")
@@ -142,6 +101,40 @@ def save_modbus_field(ip, field, value):
     except sqlite3.Error as e:
         print(f"Error updating {field}: {e}")
 
+def create_user(_):
+    print("Create or Update User Account")
+    username = input("Enter a username: ").strip()
+    password = getpass("Enter a password: ").strip()
+
+    if not username or not password:
+        print("Username and password cannot be empty.")
+        return
+
+    try:
+        conn = sqlite3.connect(DB_FILE)
+        cur = conn.cursor()
+
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS tokens (
+                username TEXT PRIMARY KEY,
+                password TEXT
+            )
+        """)
+
+        
+        cur.execute("""
+            INSERT INTO tokens (username, password)
+            VALUES (?, ?)
+            ON CONFLICT(username) DO UPDATE SET password=excluded.password
+        """, (username, password))
+
+        conn.commit()
+        conn.close()
+        print(f"User '{username}' and the associated password added.")
+
+    except sqlite3.Error as e:
+        print(f"Database error: {e}")
+
 def initial_modbus_sync(client, ip):
     try:
         di = client.read_discrete_inputs(0, 4, slave=1)
@@ -163,7 +156,6 @@ def initial_modbus_sync(client, ip):
     except Exception as e:
         print(f"Modbus sync failed: {e}")
 
-
 def read_discrete_input(client):
     print("Discrete Input Contacts [R/O]")
     result = client.read_discrete_inputs(address=0, count=4, slave=1)
@@ -174,8 +166,7 @@ def read_discrete_input(client):
             status = f"{GREEN}True{RESET}" if val else f"{RED}False{RESET}"
             print(f"Contact {i}: {status}")
     
-
-def read_discrete_output_coils(client):
+def read_output_coils(client):
     print("Discrete Output Coils [R/W]")
     result = client.read_coils(address=0, count=4, slave=1)
     if result.isError():
@@ -185,7 +176,7 @@ def read_discrete_output_coils(client):
             status = f"{GREEN}True{RESET}" if val else f"{RED}False{RESET}"
             print(f"Coil {i}: {status}")
 
-def read_analog_input_registers(client):
+def read_input_registers(client):
     print("Analogue Input Registers [R/O]")
     result = client.read_input_registers(address=0, count=8, slave=1)
     if result.isError():
@@ -194,8 +185,7 @@ def read_analog_input_registers(client):
         for i, val in enumerate(result.registers[:8]):
             print(f"Register {i}: {val}")
   
-
-def read_analog_output_registers(client):
+def read_holding_registers(client):
     print("Analogue Output Holding Registers [R/W]")
     result = client.read_holding_registers(address=0, count=8, slave=1)
     if result.isError():
@@ -205,9 +195,8 @@ def read_analog_output_registers(client):
             print(f"Register {i}: {val}")
 
 def read_all_blocks(client):
-    print("Display all Discrete and Register values\n")
 
-    # Discrete Inputs
+    print("Display all Discrete and Register values\n")
     di = client.read_discrete_inputs(0, 4, slave=1)
     if di.isError():
         print("Discrete Input Contacts Error reading")
@@ -218,33 +207,29 @@ def read_all_blocks(client):
         ]
         print("Discrete Input Contacts" + ", ".join(contacts))
 
-    # Output Coils
-    co = client.read_coils(0, 4, slave=1)
+        co = client.read_coils(0, 4, slave=1)
     if co.isError():
-        print("Discrete Output Coils         Error reading")
+        print("Discrete Output Coils/t Error reading")
     else:
         coils = [
             f"{GREEN}True{RESET}" if b else f"{RED}False{RESET}"
             for b in co.bits[:4]
         ]
-        print("Discrete Output Coils         " + ", ".join(coils))
+        print("Discrete Output Coils/t" + ", ".join(coils))
 
-    # Input Registers
     ir = client.read_input_registers(0, 8, slave=1)
     if ir.isError():
-        print("Analogue Input Registers      Error reading")
+        print("Analogue Input Registers/tError reading")
     else:
-        print("Analogue Input Registers      [ " + ", ".join(str(r) for r in ir.registers[:8]) + " ]")
-
-    # Holding Registers
-    hr = client.read_holding_registers(0, 8, slave=1)
+        print("Analogue Input Registers/t[ " + ", ".join(str(r) for r in ir.registers[:8]) + " ]")
+        hr = client.read_holding_registers(0, 8, slave=1)
     if hr.isError():
         print("Analogue Output Holding Registers Error reading")
     else:
         print("Analogue Output Holding Registers [ " + ", ".join(str(r) for r in hr.registers[:8]) + " ]")
 
 def write_output_coils(client, ip):
-    print("Enter comma separated")
+    print("Enter comma separated 0s and 1s ")
     user_input = input("list of up to 4 bool values: ").strip()
 
     try:
@@ -261,9 +246,6 @@ def write_output_coils(client, ip):
 
         formatted = ", ".join([f"'{b}'" for b in bits_raw])
         print(f"\nAccepting these values: {formatted}.")
-
-
-
         result = client.write_coils(address=0, values=bits, slave=1)
 
         if result.isError():
@@ -279,8 +261,6 @@ def write_output_coils(client, ip):
 
     except ValueError:
         print("Invalid input. Only comma-separated 0 or 1.")
-
-
 
 def write_holding_registers(client,ip):
     print("Enter comma separated")
@@ -317,8 +297,6 @@ def write_holding_registers(client,ip):
     except ValueError:
         print("Invalid input. Use only integers from 0 to 9.")
 
-
-
 def display_modbus_info(client):
 
 
@@ -326,7 +304,7 @@ def display_modbus_info(client):
     response = client.execute(request)
 
     if not response or not hasattr(response, "information"):
-        print("Could not read modbus server information.")
+        print("Unable to read Modbus device info.")
         client.close()
         return None
 
@@ -337,10 +315,8 @@ def display_modbus_info(client):
     client.close()
     return True
 
-
-
 def main():
-    args = parse_args()
+    args = args_parser()
     ip = args.ip
     port = args.port
     client = ModbusTcpClient(host=ip, port=port)
@@ -350,16 +326,16 @@ def main():
     initial_modbus_sync(client, args.ip)
     display_modbus_info(client)
     while True:  
-        print_menu()
+        display_menu()
         choice = input("\nSelect an activity: ")
         if choice == "1":
             read_discrete_input(client)
         elif choice == "2":
-            read_discrete_output_coils(client)   
+            read_output_coils(client)   
         elif choice == "3":
-            read_analog_input_registers(client)
+            read_input_registers(client)
         elif choice == "4":
-            read_analog_output_registers(client)
+            read_holding_registers(client)
         elif choice == "5":
             read_all_blocks(client)
         elif choice == "6":
@@ -367,7 +343,7 @@ def main():
         elif choice == "7":
             write_holding_registers(client,ip)
         elif choice == "8":
-            create_or_update_user(client)
+            create_user(client)
         elif choice == "9":
             print("\nTerminating client..../n")
             break
