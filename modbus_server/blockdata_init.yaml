@@ -1,0 +1,7 @@
+# Initial Data for Modbus Server v3.0
+
+di: [1,1,0,0]            # Discrete Input Contacts
+co: [0,0,1,1]            # Discrete Output Coils
+ir: [0,0,0,0,4,4,4,4]    # Analogue Input Register
+hr: [3,3,3,3,0,0,0,0]    # Analogue Output Holding Register
+
