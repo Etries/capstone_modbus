@@ -42,6 +42,10 @@ content_frame.pack(side="right", expand=True, fill="both")
 
 
 def save_modbus_field(ip, field, value):
+    """Saves the fields and update dabase at
+    write function to the server
+    """
+
     if field not in ["di", "co", "ir", "hr"]:
         return
     try:
@@ -65,7 +69,13 @@ def save_modbus_field(ip, field, value):
     except sqlite3.Error as e:
         tk.Label(content_frame, text=f"Database error: {e}", fg="red", bg="#f0f0f0").pack()
 
+
+#user cretion in sqlite
 def create_user():
+    """creates user and save it to databse
+    if user is already created, it will update
+    the password"""
+
     for widget in content_frame.winfo_children():
         widget.destroy()
 
@@ -115,7 +125,11 @@ def create_user():
     submit_btn = tk.Button(content_frame, text="Submit", command=submit)
     submit_btn.pack(pady=10)
 
+ 
 def read_discrete_inputs():
+    """a function to read discree input from
+    server"""
+
     for widget in content_frame.winfo_children():
         widget.destroy()
 
@@ -136,7 +150,10 @@ def read_discrete_inputs():
             status = "True" if bit else "False"
             tk.Label(content_frame, text=f"Contact {i}: {status}", fg=color, font=("Arial", 12), bg="#f0f0f0").pack()
 
+
+#reads coils status from server 
 def read_output_coils():
+
     for widget in content_frame.winfo_children():
         widget.destroy()
 
@@ -157,6 +174,8 @@ def read_output_coils():
             status = "True" if bit else "False"
             tk.Label(content_frame, text=f"Coil {i}: {status}", fg=color, font=("Arial", 12), bg="#f0f0f0").pack()
 
+
+#Retrieves input registers from the modbus server
 def read_input_registers():
     for widget in content_frame.winfo_children():
         widget.destroy()
@@ -176,7 +195,9 @@ def read_input_registers():
         for i, val in enumerate(values):
             tk.Label(content_frame, text=f"Register {i}: {val}", font=("Arial", 12), bg="#f0f0f0").pack()
 
+#Retrieves holding registers from the modbus server
 def read_holding_registers():
+
     for widget in content_frame.winfo_children():
         widget.destroy()
 
@@ -195,7 +216,9 @@ def read_holding_registers():
         for i, val in enumerate(values):
             tk.Label(content_frame, text=f"Register {i}: {val}", font=("Arial", 12), bg="#f0f0f0").pack()
 
+#Retrieves all status from modbus server
 def read_all_blocks():
+
     for widget in content_frame.winfo_children():
         widget.destroy()
 
@@ -240,8 +263,10 @@ def read_all_blocks():
     except Exception as e:
         tk.Label(content_frame, text=f"Read error: {e}", fg="red", bg="#f0f0f0").grid(row=1, column=0, columnspan=2, sticky="w")
 
-
+#Connects to modbus server based on ip and port
 def connect_to_server():
+
+
     global client, current_ip
     ip = ip_entry.get()
     port = int(port_entry.get())
@@ -297,7 +322,11 @@ def connect_to_server():
         status.config(text=f"Error: {e}", fg="red")
         modbus_info.config(text="")
 
+#recieves inputs and write to server
 def write_output_coils():
+    """This will accept input from user
+    first validates then write to server"""
+
     for widget in content_frame.winfo_children():
         widget.destroy()
 
@@ -339,7 +368,11 @@ def write_output_coils():
     submit_btn = tk.Button(content_frame, text="Submit", command=submit)
     submit_btn.pack(pady=10)
 
+#recieves inputs and write to server
 def write_holding_registers():
+    """This will accept input from user
+    first validates then write to server"""
+        
     for widget in content_frame.winfo_children():
         widget.destroy()
 
@@ -394,7 +427,7 @@ def write_holding_registers():
     submit_btn = tk.Button(content_frame, text="Submit", command=submit)
     submit_btn.pack(pady=10)
 
-
+#used a tuple list to store and loop
 buttons = [
     ("Read Discrete Inputs", read_discrete_inputs),
     ("Read Output Coils", read_output_coils),
@@ -407,6 +440,7 @@ buttons = [
     ("Exit", root.quit)
 ]
 
+#this way i dont have to create for each
 for label, cmd in buttons:
     btn = tk.Button(navbar_frame, text=label, command=cmd, bg="#2c3e50", fg="white", relief="flat")
     btn.pack(fill="x", pady=2, padx=5, ipady=5)

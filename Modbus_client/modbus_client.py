@@ -1,5 +1,11 @@
 #!/usr/bin/env python3
 
+""" This is a modbus client module that will try
+to connect to the modbus server based on the ip and 
+port provided. after a successful connection it will 
+CLI based interactive men option to read and write
+to the modbus server"""
+
 import argparse
 import sys
 import os
@@ -29,6 +35,7 @@ def display_menu():
     print("8. Create/update a username and password")
     print("9. Exit/Quit")
 
+#parses the given argument in CLI
 def args_parser():
     parser = argparse.ArgumentParser(
         prog="modbus_client.py",
@@ -43,10 +50,17 @@ def args_parser():
     if not args.ip:
         parser.print_help()
         sys.exit(1)
+    if not args.port:
+        parser.print_help()
+        sys.exit(1)
 
     return args
 
+
 def save_modbus_state(ip, di, co, ir, hr):
+    """This function is called to save the modbus status
+        from server at first session creation"""
+
     try:
         
         conn = sqlite3.connect(DB_FILE)
@@ -75,6 +89,11 @@ def save_modbus_state(ip, di, co, ir, hr):
         print(f"Error saving Modbus state: {e}")
 
 def save_modbus_field(ip, field, value):
+    """Saves the fields and update dabase at
+    write function to the server
+    """
+
+
     if field not in ["di", "co", "ir", "hr"]:
         print(f"Invalid Modbus field: {field}")
         return
@@ -102,6 +121,11 @@ def save_modbus_field(ip, field, value):
         print(f"Error updating {field}: {e}")
 
 def create_user(_):
+    """creates user and save it to databse
+    if user is already created, it will update
+    the password"""
+
+
     print("Create or Update User Account")
     username = input("Enter a username: ").strip()
     password = getpass("Enter a password: ").strip()
@@ -135,7 +159,12 @@ def create_user(_):
     except sqlite3.Error as e:
         print(f"Database error: {e}")
 
+
 def initial_modbus_sync(client, ip):
+    """This is the initial function that
+    will run ass soon as connected to modbus
+    server to save current seeson of server"""
+
     try:
         di = client.read_discrete_inputs(0, 4, slave=1)
         co = client.read_coils(0, 4, slave=1)
@@ -156,7 +185,12 @@ def initial_modbus_sync(client, ip):
     except Exception as e:
         print(f"Modbus sync failed: {e}")
 
+
 def read_discrete_input(client):
+    """a function to read discree input from
+    server"""
+
+
     print("Discrete Input Contacts [R/O]")
     result = client.read_discrete_inputs(address=0, count=4, slave=1)
     if result.isError():
@@ -165,8 +199,10 @@ def read_discrete_input(client):
         for i, val in enumerate(result.bits[:4]):
             status = f"{GREEN}True{RESET}" if val else f"{RED}False{RESET}"
             print(f"Contact {i}: {status}")
-    
+
+#reads coils status from server    
 def read_output_coils(client):
+
     print("Discrete Output Coils [R/W]")
     result = client.read_coils(address=0, count=4, slave=1)
     if result.isError():
@@ -176,6 +212,7 @@ def read_output_coils(client):
             status = f"{GREEN}True{RESET}" if val else f"{RED}False{RESET}"
             print(f"Coil {i}: {status}")
 
+#Retrieves input registers from the modbus server
 def read_input_registers(client):
     print("Analogue Input Registers [R/O]")
     result = client.read_input_registers(address=0, count=8, slave=1)
@@ -184,7 +221,9 @@ def read_input_registers(client):
     else:
         for i, val in enumerate(result.registers[:8]):
             print(f"Register {i}: {val}")
-  
+
+
+#Retrieves holding registers from the modbus server
 def read_holding_registers(client):
     print("Analogue Output Holding Registers [R/W]")
     result = client.read_holding_registers(address=0, count=8, slave=1)
@@ -194,6 +233,7 @@ def read_holding_registers(client):
         for i, val in enumerate(result.registers[:8]):
             print(f"Register {i}: {val}")
 
+#Retrieves all status from modbus server
 def read_all_blocks(client):
 
     print("Display all Discrete and Register values\n")
@@ -228,7 +268,12 @@ def read_all_blocks(client):
     else:
         print("Analogue Output Holding Registers [ " + ", ".join(str(r) for r in hr.registers[:8]) + " ]")
 
+
+#recieves inputs and write to server
 def write_output_coils(client, ip):
+    """This will accept input from user
+    first validates then write to server"""
+    
     print("Enter comma separated 0s and 1s ")
     user_input = input("list of up to 4 bool values: ").strip()
 
@@ -262,7 +307,11 @@ def write_output_coils(client, ip):
     except ValueError:
         print("Invalid input. Only comma-separated 0 or 1.")
 
+#recieves inputs and write to server
 def write_holding_registers(client,ip):
+    """This will accept input from user
+    first validates then write to server"""
+
     print("Enter comma separated")
     print("list of up to 8 integer values: ", end="")
     user_input = input().strip()
@@ -297,6 +346,7 @@ def write_holding_registers(client,ip):
     except ValueError:
         print("Invalid input. Use only integers from 0 to 9.")
 
+#This will display modbus info at the start
 def display_modbus_info(client):
 
 
@@ -307,7 +357,7 @@ def display_modbus_info(client):
         print("Unable to read Modbus device info.")
         client.close()
         return None
-
+    #colour will be applied to the output to show what is on and off
     print(f"Vendor Name : {GREEN}{response.information[0].decode()}{RESET}")
     print(f"Product Code: {GREEN}{response.information[1].decode()}{RESET}")
     print(f"Revision    : {GREEN}{response.information[2].decode()}{RESET}\n")
@@ -316,6 +366,8 @@ def display_modbus_info(client):
     return True
 
 def main():
+    """"main function"""
+
     args = args_parser()
     ip = args.ip
     port = args.port
@@ -326,7 +378,7 @@ def main():
     initial_modbus_sync(client, args.ip)
     display_modbus_info(client)
     while True:  
-        display_menu()
+        display_menu()  # calls the display funcion
         choice = input("\nSelect an activity: ")
         if choice == "1":
             read_discrete_input(client)

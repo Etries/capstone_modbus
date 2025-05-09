@@ -20,6 +20,10 @@ DB_FILE = os.path.join(BASE_DIR, "modbus_db.sqlite")
 
 @auth.verify_token
 def verify_token(token):
+    """The built decorator will athonticate the
+    incoming reques and then this funtion will
+    connect to the sqlite info"""
+
     try:
         conn = sqlite3.connect(DB_FILE)
         cur = conn.cursor()
@@ -35,6 +39,9 @@ def verify_token(token):
 
 
 class ModbusStatus(Resource):
+    """This function will get modbus resource once the
+    decoraton validates if user is loged in """
+    
     @auth.login_required
     def get(self):
         try:
@@ -62,5 +69,6 @@ class ModbusStatus(Resource):
 
 api.add_resource(ModbusStatus, "/")
 
+#as i wil be using waitress i dont need this to be main
 # if __name__ == "__main__":
 #     app.run(host="0.0.0.0", port=5000, debug=True)
