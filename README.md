@@ -11,6 +11,7 @@ It is composed of:
 - Centralised SQLite logging of Modbus
 
 Project Structure:
+```
 capstone_modbus/
 ├── modbus_server/               # Modbus TCP Server
 │   ├── blockdata_init.yaml      # Register values (preload config)
@@ -31,7 +32,7 @@ capstone_modbus/
 ├── requirements.txt             # Python dependencies to install
 └── README.md      
 
-
+```
 
 
 ## Requirements
@@ -86,7 +87,7 @@ Run Web server
 Run ReactJS
 ```sh
 cd dbus-react-client/ 
-.npm start
+npm start
 ```
 
 
@@ -94,7 +95,7 @@ cd dbus-react-client/
 
 
 ```sh
-127.0.0.1:8000
+Web server at 
 ```
 
 ## License
