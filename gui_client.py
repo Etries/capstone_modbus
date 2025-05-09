@@ -194,17 +194,17 @@ def read_holding_registers():
         values = result.registers[:8]
         for i, val in enumerate(values):
             tk.Label(content_frame, text=f"Register {i}: {val}", font=("Arial", 12), bg="#f0f0f0").pack()
+
 def read_all_blocks():
     for widget in content_frame.winfo_children():
         widget.destroy()
 
     title = tk.Label(content_frame, text="All Modbus Data", font=("Arial", 14), bg="#f0f0f0")
-    title.pack(pady=10)
+    title.grid(row=0, column=0, columnspan=2, pady=10, sticky="w")
 
     if client is None:
-        tk.Label(content_frame, text="⚠️ Not connected", fg="orange", bg="#f0f0f0").pack()
+        tk.Label(content_frame, text="Not connected", fg="orange", bg="#f0f0f0").grid(row=1, column=0)
         return
-
 
     try:
         di = client.read_discrete_inputs(0, 4, slave=1)
@@ -213,27 +213,33 @@ def read_all_blocks():
         hr = client.read_holding_registers(0, 8, slave=1)
 
         if not di.isError():
-            tk.Label(content_frame, text="Discrete Inputs:", font=("Arial", 12), bg="#f0f0f0").pack()
+            tk.Label(content_frame, text="Discrete Inputs:", font=("Arial", 12), bg="#f0f0f0").grid(row=2, column=0, sticky="w")
             for i, bit in enumerate(di.bits[:4]):
-                tk.Label(content_frame, text=f"Contact {i}: {'True' if bit else 'False'}", fg="green" if bit else "red", bg="#f0f0f0").pack()
+                color = "green" if bit else "red"
+                status = "True" if bit else "False"
+                tk.Label(content_frame, text=f"Contact {i}: {status}", fg=color, bg="#f0f0f0").grid(row=3+i, column=0, sticky="w")
 
         if not co.isError():
-            tk.Label(content_frame, text="Output Coils:", font=("Arial", 12), bg="#f0f0f0").pack()
+            tk.Label(content_frame, text="Output Coils:", font=("Arial", 12), bg="#f0f0f0").grid(row=2, column=1, sticky="w")
             for i, bit in enumerate(co.bits[:4]):
-                tk.Label(content_frame, text=f"Coil {i}: {'True' if bit else 'False'}", fg="green" if bit else "red", bg="#f0f0f0").pack()
+                color = "green" if bit else "red"
+                status = "True" if bit else "False"
+                tk.Label(content_frame, text=f"Coil {i}: {status}", fg=color, bg="#f0f0f0").grid(row=3+i, column=1, sticky="w")
 
+        reg_base = 7
         if not ir.isError():
-            tk.Label(content_frame, text="Input Registers:", font=("Arial", 12), bg="#f0f0f0").pack()
+            tk.Label(content_frame, text="Input Registers:", font=("Arial", 12), bg="#f0f0f0").grid(row=reg_base, column=0, sticky="w")
             for i, val in enumerate(ir.registers[:8]):
-                tk.Label(content_frame, text=f"Register {i}: {val}", bg="#f0f0f0").pack()
+                tk.Label(content_frame, text=f"Register {i}: {val}", bg="#f0f0f0").grid(row=reg_base+1+i, column=0, sticky="w")
 
         if not hr.isError():
-            tk.Label(content_frame, text="Holding Registers:", font=("Arial", 12), bg="#f0f0f0").pack()
+            tk.Label(content_frame, text="Holding Registers:", font=("Arial", 12), bg="#f0f0f0").grid(row=reg_base, column=1, sticky="w")
             for i, val in enumerate(hr.registers[:8]):
-                tk.Label(content_frame, text=f"Register {i}: {val}", bg="#f0f0f0").pack()
+                tk.Label(content_frame, text=f"Register {i}: {val}", bg="#f0f0f0").grid(row=reg_base+1+i, column=1, sticky="w")
 
     except Exception as e:
-        tk.Label(content_frame, text=f"Read error: {e}", fg="red", bg="#f0f0f0").pack()
+        tk.Label(content_frame, text=f"Read error: {e}", fg="red", bg="#f0f0f0").grid(row=1, column=0, columnspan=2, sticky="w")
+
 
 def connect_to_server():
     global client, current_ip
