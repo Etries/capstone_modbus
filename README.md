@@ -95,7 +95,7 @@ npm start
 
 
 ```sh
-Web server at 
+Web server at x.x.x.x:3000
 ```
 
 ## License
